@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Set the Time Challenge</title>
+<link rel="icon" type="image/svg+xml" href="clock.png"> 
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "Open Sans", sans-serif;
+    background: #FFF4D9;
+    margin: 0; padding: 0; color: #333;
+  }
+  header {
+    background: #659287; color: #fff; padding: 20px; text-align: center; margin-bottom: 40px;
+  }
+  header h1 {
+    margin: 0; font-size: 2.2em; font-family: "Space Mono", monospace; letter-spacing: 1px;
+  }
+  .container {
+    max-width: 700px; margin: 20px auto; background: #fff; border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; padding: 20px; margin-bottom: 40px;
+  }
+  .intro, .game-area, .result-area { display: none; }
+  .active { display: block; }
+  .intro p {
+    font-size: 1.2em; text-align: left; line-height:1.6em;
+  }
+  input[type="text"] {
+    padding: 10px; width: 100%; box-sizing: border-box;
+    margin-bottom: 15px; border: 1px solid #aaa; border-radius: 5px; font-size: 1.1em;
+  }
+  .button {
+    background: #659287; color: #fff; padding: 12px 24px; border: none; border-radius:5px;
+    cursor: pointer; font-size: 1.1em; margin: 5px 0; display: inline-block; font-family:"Space Mono", monospace;
+    transition: background 0.3s ease; text-align:center;
+  }
+  .button:hover { background: #659287; }
+  .question-count {
+    font-weight: bold; margin-bottom: 15px; font-size: 1.2em; text-align:center; font-family:"Space Mono", monospace; color:#333;
+  }
+  .question-text {
+    margin-bottom: 20px; font-size: 1.3em; text-align:center; font-weight:bold; font-family:"Space Mono", monospace; color:#333;
+  }
+  .feedback {
+    font-size:1.1em; margin-bottom:20px; padding:10px; border-radius:5px; text-align:center; font-weight:bold;
+  }
+  .feedback.correct {
+    background:#d2e3bf; border:1px solid #9ed98b; color:#333;
+  }
+  .feedback.incorrect {
+    background:#ffdfed; border:1px solid #e5a5a5; color:#333;
+  }
+  .explanation {
+    font-size:1.1em; margin-bottom:20px; text-align:center; font-style: italic; color:#555;
+  }
+  .controls {
+    display:flex; justify-content:center; gap:30px; margin-bottom:20px; align-items:center;
+  }
+  .control-group {
+    text-align:center;
+  }
+  .control-group button {
+    display:block; margin:5px auto; font-size:1.1em;
+  }
+  .scoreboard, .timer {
+    font-size:1.1em; font-family:"Space Mono", monospace; font-weight:bold; color:#527c72;
+    text-align:center; margin-bottom:20px;
+  }
+  .clock-wrapper {
+    width:250px; height:250px; margin:20px auto; position:relative;
+  }
+  footer {
+    text-align:center; color:#444; margin:20px 0; font-size:1em; font-family:"Open Sans", sans-serif;
+  }
+  footer a{
+    color: #444;
+    text-decoration: none;
+    font-size: 1em;
+    font-family: "Open Sans", sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Set the Time Challenge</h1>
+</header>
+
+<div class="container">
+  <div class="intro active" id="intro">
+    <h2 style="font-family:'Space Mono', monospace; font-size:1.6em; text-align:center;">Welcome!</h2>
+    <p>
+      In this challenge, set the analog clock to the given time. Times will be shown in forms like "o'clock", "quarter past", "half past", "quarter to", "X minutes past", "X minutes to", and sometimes digital.<br><br>
+     
+      You have 18 minutes total. Try your best and have fun!
+    </p>
+    <input type="text" id="playerName" placeholder="Your Name"/>
+    <button class="button" onclick="startGame()">Start</button>
+  </div>
+
+  <div class="game-area" id="game-area">
+    <div class="timer" id="timer">Time: 18:00</div>
+    <div class="scoreboard" id="scoreboard">Score: 0</div>
+    <div class="question-count" id="question-count"></div>
+    <div class="question-text" id="question-text"></div>
+    <div id="clock-area"></div>
+
+    <div class="controls">
+      <div class="control-group">
+        <button class="button" id="hour-up">Hour +</button>
+        <button class="button" id="hour-down">Hour -</button>
+      </div>
+      <div class="control-group">
+        <button class="button" id="minute-up">Minute +</button>
+        <button class="button" id="minute-down">Minute -</button>
+      </div>
+    </div>
+
+    <div class="feedback hidden" id="feedback"></div>
+    <div class="explanation hidden" id="explanation"></div>
+    <button class="button" id="actionBtn" onclick="actionButtonClicked()">Check</button>
+  </div>
+
+  <div class="result-area" id="result-area">
+    <h2 style="font-family:'Space Mono', monospace; font-size:1.8em; text-align:center;">Well Done!</h2>
+    <p id="final-message" style="font-size:1.2em; text-align:center;"></p>
+    <p id="final-score" style="font-size:1.2em; text-align:center;"></p>
+    <p style="text-align:center;">Thank you for playing! Keep practicing!</p>
+  </div>
+</div>
+
+<footer>
+  <p>All the best!</p>
+  <a href="https://www.flaticon.com/free-icons/clock" title="clock icons">Clock icons created by Freepik - Flaticon</a>
+</footer>
+
+<script>
+// Configuration
+const fiveMinuteIncrements = [0,5,10,15,20,25,30,35,40,45,50,55];
+let currentQuestionIndex = 0;
+let score = 0;
+let playerName = "";
+let totalTime = 18 * 60; // 18 minutes
+let timerInterval = null;
+let state = "check"; // "check" or "next"
+
+// Current clock state
+let chosenHour = 1;
+let chosenMinute = 0;
+
+document.getElementById('hour-up').onclick = ()=>{
+  chosenHour+=1; if(chosenHour>12) chosenHour=1; updateLabels();
+};
+document.getElementById('hour-down').onclick = ()=>{
+  chosenHour-=1; if(chosenHour<1) chosenHour=12; updateLabels();
+};
+document.getElementById('minute-up').onclick = ()=>{
+  chosenMinute+=5;
+  if(chosenMinute>=60) {
+    chosenMinute-=60;
+    chosenHour+=1;
+    if(chosenHour>12) chosenHour=1;
+  }
+  updateLabels();
+};
+document.getElementById('minute-down').onclick = ()=>{
+  chosenMinute-=5;
+  if(chosenMinute<0) {
+    chosenMinute+=60;
+    chosenHour-=1;
+    if(chosenHour<1) chosenHour=12;
+  }
+  updateLabels();
+};
+
+function startGame() {
+  const nameInput = document.getElementById("playerName").value.trim();
+  if(!nameInput) {
+    alert("Please enter your name before starting.");
+    return;
+  }
+  playerName = nameInput;
+  document.getElementById("intro").classList.remove("active");
+  document.getElementById("game-area").classList.add("active");
+  generateQuestions();
+  showQuestion();
+  startTimer();
+}
+
+function startTimer() {
+  const timerEl = document.getElementById("timer");
+  timerInterval = setInterval(()=>{
+    if(totalTime <= 0) {
+      clearInterval(timerInterval);
+      endGame();
+      return;
+    }
+    totalTime--;
+    let minutes = Math.floor(totalTime/60);
+    let seconds = totalTime%60;
+    if(seconds<10) seconds = "0"+seconds;
+    timerEl.textContent = "Time: " + minutes+":"+seconds;
+  },1000);
+}
+
+function formatTime(hour, min) {
+  let hh = hour<10?"0"+hour:hour;
+  let mm = min<10?"0"+min:min;
+  return hh+":"+mm;
+}
+
+function generateTimePhrases(hour, minutes) {
+  let nextHour = (hour % 12) + 1;
+  if(minutes === 0) return [hour + " o'clock"];
+  if(minutes === 15) return ["quarter past " + hour];
+  if(minutes === 30) return ["half past " + hour];
+  if(minutes === 45) return ["quarter to " + nextHour, "15 minutes to " + nextHour, "45 minutes past " + hour];
+
+  if(minutes < 30) {
+    return [minutes + " minutes past " + hour];
+  } else {
+    let toMin = 60 - minutes;
+    return [toMin + " minutes to " + nextHour, minutes+" minutes past "+hour];
+  }
+}
+
+// Weighted selection to reduce digital frequency and increase "minutes to" usage
+// We'll pick from synonyms mostly. If minutes >30, prefer the "to" form.
+function pickQuestionFormat(hour, minutes, synonyms) {
+  let digital = formatTime(hour, minutes);
+  let r = Math.random();
+
+  if(minutes > 30) {
+    // If >30 min, prefer "to"
+    if(r<0.7) {
+      let toForm = synonyms.find(s=>s.includes("to"));
+      if(toForm) return toForm;
+      return synonyms[0];
+    } else if(r<0.9) {
+      return synonyms.find(s=>!s.includes("to")) || synonyms[0];
+    } else {
+      return digital;
+    }
+  } else {
+    if(r<0.9) {
+      return synonyms[Math.floor(Math.random()*synonyms.length)];
+    } else {
+      return digital;
+    }
+  }
+}
+
+let questions=[];
+
+function generateQuestions() {
+  for(let i=0; i<100; i++){
+    let hour = Math.floor(Math.random()*12)+1;
+    let m = randomChoice(fiveMinuteIncrements);
+    let synonyms = generateTimePhrases(hour,m);
+    let chosenPhrase = pickQuestionFormat(hour,m,synonyms);
+    questions.push({
+      hour: hour,
+      minute: m,
+      phrase: chosenPhrase,
+      synonyms: synonyms,
+    });
+  }
+  shuffleArray(questions);
+}
+
+function showQuestion() {
+  let q = questions[currentQuestionIndex];
+  document.getElementById("question-count").textContent = "Question " + (currentQuestionIndex+1) + " of " + questions.length;
+  document.getElementById("question-text").textContent = "Set the clock to: " + q.phrase;
+
+  chosenHour = 1;
+  chosenMinute = 0;
+  updateLabels();
+
+  let feedbackEl = document.getElementById("feedback");
+  let explanationEl = document.getElementById("explanation");
+  feedbackEl.classList.add("hidden");
+  explanationEl.classList.add("hidden");
+  feedbackEl.textContent = "";
+  explanationEl.textContent = "";
+
+  let actionBtn = document.getElementById("actionBtn");
+  actionBtn.textContent = "Check";
+  state="check";
+}
+
+function updateLabels() {
+  drawClock(chosenHour, chosenMinute);
+}
+
+function drawClock(h, m) {
+  let clockArea = document.getElementById("clock-area");
+  clockArea.innerHTML = "";
+  let clockDiv = document.createElement("div");
+  clockDiv.className = "clock-wrapper";
+
+  let svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("width","250");
+  svg.setAttribute("height","250");
+  svg.style.display="block";
+  svg.style.margin="auto";
+
+  let circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  circle.setAttribute("cx","125");
+  circle.setAttribute("cy","125");
+  circle.setAttribute("r","120");
+  circle.setAttribute("stroke","black");
+  circle.setAttribute("stroke-width","2");
+  circle.setAttribute("fill","#fff");
+  svg.appendChild(circle);
+
+  let radius = 90;
+  for(let hh=1; hh<=12; hh++){
+    let angle = (hh * 30) - 90; 
+    let rad = angle * Math.PI/180;
+    let x = 125 + radius * Math.cos(rad);
+    let y = 125 + radius * Math.sin(rad) + 5;
+    let txt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x",x);
+    txt.setAttribute("y",y);
+    txt.setAttribute("font-size","20");
+    txt.setAttribute("font-family","Open Sans");
+    txt.setAttribute("text-anchor","middle");
+    txt.textContent = hh.toString();
+    txt.setAttribute("fill","#333");
+    svg.appendChild(txt);
+  }
+
+  let hourAngle = ((h%12)*30) + (m*0.5);
+  let minuteAngle = m*6;
+
+  let hRad = (hourAngle - 90)*Math.PI/180;
+  let mRad = (minuteAngle - 90)*Math.PI/180;
+
+  let hx = 125 + 55 * Math.cos(hRad);
+  let hy = 125 + 55 * Math.sin(hRad);
+  let hourHandLine = document.createElementNS("http://www.w3.org/2000/svg","line");
+  hourHandLine.setAttribute("x1","125");
+  hourHandLine.setAttribute("y1","125");
+  hourHandLine.setAttribute("x2",hx);
+  hourHandLine.setAttribute("y2",hy);
+  hourHandLine.setAttribute("stroke","black");
+  hourHandLine.setAttribute("stroke-width","6");
+  hourHandLine.setAttribute("stroke-linecap","round");
+  svg.appendChild(hourHandLine);
+
+  let mx = 125 + 78 * Math.cos(mRad);
+  let my = 125 + 78 * Math.sin(mRad);
+  let minuteHandLine = document.createElementNS("http://www.w3.org/2000/svg","line");
+  minuteHandLine.setAttribute("x1","125");
+  minuteHandLine.setAttribute("y1","125");
+  minuteHandLine.setAttribute("x2",mx);
+  minuteHandLine.setAttribute("y2",my);
+  minuteHandLine.setAttribute("stroke","black");
+  minuteHandLine.setAttribute("stroke-width","4");
+  minuteHandLine.setAttribute("stroke-linecap","round");
+  svg.appendChild(minuteHandLine);
+
+  let centerDot = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  centerDot.setAttribute("cx","125");
+  centerDot.setAttribute("cy","125");
+  centerDot.setAttribute("r","4");
+  centerDot.setAttribute("fill","black");
+  svg.appendChild(centerDot);
+
+  clockDiv.appendChild(svg);
+  clockArea.appendChild(clockDiv);
+}
+
+function actionButtonClicked() {
+  if(state==="check") {
+    checkAnswer();
+  } else {
+    nextQuestion();
+  }
+}
+
+function checkAnswer() {
+  let q = questions[currentQuestionIndex];
+  let correct = (q.hour === chosenHour && q.minute === chosenMinute);
+
+  let feedbackEl = document.getElementById("feedback");
+  let explanationEl = document.getElementById("explanation");
+  feedbackEl.classList.remove("hidden");
+  feedbackEl.classList.remove("correct","incorrect");
+
+  if(correct) {
+    feedbackEl.textContent = "Correct!";
+    feedbackEl.classList.add("correct");
+    explanationEl.classList.remove("hidden");
+    explanationEl.textContent = "Good job! The correct time was " + formatTime(q.hour,q.minute) + ".";
+    score +=10;
+  } else {
+    feedbackEl.textContent = "Incorrect!";
+    feedbackEl.classList.add("incorrect");
+    explanationEl.classList.remove("hidden");
+    explanationEl.textContent = "The correct time was " + formatTime(q.hour,q.minute) + ". Keep trying!";
+  }
+
+  document.getElementById("scoreboard").textContent = "Score: " + score;
+  let actionBtn = document.getElementById("actionBtn");
+  actionBtn.textContent = "Next";
+  state="next";
+}
+
+function nextQuestion() {
+  currentQuestionIndex++;
+  if(currentQuestionIndex>=questions.length) {
+    endGame();
+  } else {
+    showQuestion();
+  }
+}
+
+function endGame() {
+  clearInterval(timerInterval);
+  document.getElementById("game-area").classList.remove("active");
+  document.getElementById("result-area").classList.add("active");
+  document.getElementById("final-message").textContent = "Great job, " + playerName + "!";
+  document.getElementById("final-score").textContent = "Time 4: Your Score: " + score + " out of " + (questions.length*10);
+}
+
+// Utility
+function randomChoice(arr) {
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+function shuffleArray(array) {
+  for (let i = array.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]]=[array[j], array[i]];
+  }
+}
+</script>
+</body>
+</html>
