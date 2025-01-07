@@ -28,8 +28,9 @@
   .intro p {
     font-size: 1.2em; text-align: left; line-height:1.6em;
   }
-  input[type="text"] {
-    padding: 10px; width: 100%; box-sizing: border-box;
+  .input-group { margin: 20px 0; display: flex; flex-direction: column; align-items: center; }
+  .input-group input, .input-group select {
+    padding: 10px; width: 220px; box-sizing: border-box;
     margin-bottom: 15px; border: 1px solid #aaa; border-radius: 5px; font-size: 1.1em;
   }
   .button {
@@ -37,7 +38,7 @@
     cursor: pointer; font-size: 1.1em; margin: 5px 0; display: inline-block; font-family:"Space Mono", monospace;
     transition: background 0.3s ease; text-align:center;
   }
-  .button:hover { background: #659287; }
+  .button:hover { background: #557a72; }
   .question-count {
     font-weight: bold; margin-bottom: 15px; font-size: 1.2em; text-align:center; font-family:"Space Mono", monospace; color:#333;
   }
@@ -82,6 +83,9 @@
     font-family: "Open Sans", sans-serif;
   }
 </style>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -97,8 +101,18 @@
      
       You have 18 minutes total. Try your best and have fun!
     </p>
-    <input type="text" id="playerName" placeholder="Your Name"/>
+    <div class="input-group">
+      <input type="text" id="playerName" placeholder="Your Name"/>
+      <select id="division">
+        <option value="" disabled selected>Select Division</option>
+        <option value="A">Division A</option>
+        <option value="B">Division B</option>
+        <!-- Add more divisions if needed -->
+      </select>
+      <input type="number" id="rollNo" placeholder="Enter Roll Number"/>
+    </div>
     <button class="button" onclick="startGame()">Start</button>
+    <div id="infoMsg" class="info-msg" style="font-size:1.1em; margin-top:10px; color:#fc5185; text-align:center; display:none;"></div>
   </div>
 
   <div class="game-area" id="game-area">
@@ -119,8 +133,8 @@
       </div>
     </div>
 
-    <div class="feedback hidden" id="feedback"></div>
-    <div class="explanation hidden" id="explanation"></div>
+    <div class="feedback" id="feedback" style="display:none;"></div>
+    <div class="explanation" id="explanation" style="display:none;"></div>
     <button class="button" id="actionBtn" onclick="actionButtonClicked()">Check</button>
   </div>
 
@@ -138,11 +152,48 @@
 </footer>
 
 <script>
+// Firebase configuration (Same as Time7)
+const firebaseConfig = {
+  apiKey: "AIzaSyB-RDLOoTlaio0VgtFh7eencMr9ekdFEEk",
+  authDomain: "test-app-1-6ade5.firebaseapp.com",
+  databaseURL: "https://test-app-1-6ade5-default-rtdb.firebaseio.com",
+  projectId: "test-app-1-6ade5",
+  storageBucket: "test-app-1-6ade5.firebasestorage.app",
+  messagingSenderId: "938447574937",
+  appId: "1:938447574937:web:65c1c53a12c665988b2508",
+  measurementId: "G-FKNLFZH4G9"
+};
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// Utility functions
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+function pad(num){return num<10 ? "0"+num : num;}
+function randomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function showInfo(msg){
+  const infoEl = document.getElementById("infoMsg");
+  infoEl.textContent = msg;
+  infoEl.style.display = "block";
+}
+function hideInfo(){
+  const infoEl = document.getElementById("infoMsg");
+  infoEl.textContent = "";
+  infoEl.style.display = "none";
+}
+
 // Configuration
 const fiveMinuteIncrements = [0,5,10,15,20,25,30,35,40,45,50,55];
 let currentQuestionIndex = 0;
 let score = 0;
 let playerName = "";
+let division = "";
+let rollNo = "";
 let totalTime = 18 * 60; // 18 minutes
 let timerInterval = null;
 let state = "check"; // "check" or "next"
@@ -151,67 +202,26 @@ let state = "check"; // "check" or "next"
 let chosenHour = 1;
 let chosenMinute = 0;
 
-document.getElementById('hour-up').onclick = ()=>{
-  chosenHour+=1; if(chosenHour>12) chosenHour=1; updateLabels();
-};
-document.getElementById('hour-down').onclick = ()=>{
-  chosenHour-=1; if(chosenHour<1) chosenHour=12; updateLabels();
-};
-document.getElementById('minute-up').onclick = ()=>{
-  chosenMinute+=5;
-  if(chosenMinute>=60) {
-    chosenMinute-=60;
-    chosenHour+=1;
-    if(chosenHour>12) chosenHour=1;
-  }
-  updateLabels();
-};
-document.getElementById('minute-down').onclick = ()=>{
-  chosenMinute-=5;
-  if(chosenMinute<0) {
-    chosenMinute+=60;
-    chosenHour-=1;
-    if(chosenHour<1) chosenHour=12;
-  }
-  updateLabels();
-};
+// User Key for Firebase
+let userKey = "";
 
-function startGame() {
-  const nameInput = document.getElementById("playerName").value.trim();
-  if(!nameInput) {
-    alert("Please enter your name before starting.");
-    return;
-  }
-  playerName = nameInput;
-  document.getElementById("intro").classList.remove("active");
-  document.getElementById("game-area").classList.add("active");
-  generateQuestions();
-  showQuestion();
-  startTimer();
-}
+// Firebase Data Structure:
+// results/{division}_{rollNo} : {
+//   name: playerName,
+//   division: division,
+//   rollNo: rollNo,
+//   score: 0,
+//   questionsCompleted: 0,
+//   quiz: "time4",
+//   timeStarted: timestamp,
+//   lastAnswered: timestamp,
+//   totalQuestions: totalQuestions
+// }
 
-function startTimer() {
-  const timerEl = document.getElementById("timer");
-  timerInterval = setInterval(()=>{
-    if(totalTime <= 0) {
-      clearInterval(timerInterval);
-      endGame();
-      return;
-    }
-    totalTime--;
-    let minutes = Math.floor(totalTime/60);
-    let seconds = totalTime%60;
-    if(seconds<10) seconds = "0"+seconds;
-    timerEl.textContent = "Time: " + minutes+":"+seconds;
-  },1000);
-}
+// Current question set
+let questions = [];
 
-function formatTime(hour, min) {
-  let hh = hour<10?"0"+hour:hour;
-  let mm = min<10?"0"+min:min;
-  return hh+":"+mm;
-}
-
+// Initialize question generation variables
 function generateTimePhrases(hour, minutes) {
   let nextHour = (hour % 12) + 1;
   if(minutes === 0) return [hour + " o'clock"];
@@ -228,24 +238,23 @@ function generateTimePhrases(hour, minutes) {
 }
 
 // Weighted selection to reduce digital frequency and increase "minutes to" usage
-// We'll pick from synonyms mostly. If minutes >30, prefer the "to" form.
 function pickQuestionFormat(hour, minutes, synonyms) {
   let digital = formatTime(hour, minutes);
   let r = Math.random();
 
   if(minutes > 30) {
     // If >30 min, prefer "to"
-    if(r<0.7) {
-      let toForm = synonyms.find(s=>s.includes("to"));
+    if(r < 0.7) {
+      let toForm = synonyms.find(s => s.includes("to"));
       if(toForm) return toForm;
       return synonyms[0];
-    } else if(r<0.9) {
-      return synonyms.find(s=>!s.includes("to")) || synonyms[0];
+    } else if(r < 0.9) {
+      return synonyms.find(s => !s.includes("to")) || synonyms[0];
     } else {
       return digital;
     }
   } else {
-    if(r<0.9) {
+    if(r < 0.9) {
       return synonyms[Math.floor(Math.random()*synonyms.length)];
     } else {
       return digital;
@@ -253,14 +262,18 @@ function pickQuestionFormat(hour, minutes, synonyms) {
   }
 }
 
-let questions=[];
+function formatTime(hour, min) {
+  let hh = hour < 10 ? "0" + hour : hour;
+  let mm = min < 10 ? "0" + min : min;
+  return hh + ":" + mm;
+}
 
 function generateQuestions() {
-  for(let i=0; i<100; i++){
-    let hour = Math.floor(Math.random()*12)+1;
+  for(let i = 0; i < 100; i++){
+    let hour = Math.floor(Math.random()*12) + 1;
     let m = randomChoice(fiveMinuteIncrements);
-    let synonyms = generateTimePhrases(hour,m);
-    let chosenPhrase = pickQuestionFormat(hour,m,synonyms);
+    let synonyms = generateTimePhrases(hour, m);
+    let chosenPhrase = pickQuestionFormat(hour, m, synonyms);
     questions.push({
       hour: hour,
       minute: m,
@@ -269,6 +282,96 @@ function generateQuestions() {
     });
   }
   shuffleArray(questions);
+}
+
+function randomChoice(arr) {
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+document.getElementById('hour-up').onclick = ()=>{
+  chosenHour += 1; if(chosenHour > 12) chosenHour = 1; updateLabels();
+};
+document.getElementById('hour-down').onclick = ()=>{
+  chosenHour -= 1; if(chosenHour < 1) chosenHour = 12; updateLabels();
+};
+document.getElementById('minute-up').onclick = ()=>{
+  chosenMinute +=5;
+  if(chosenMinute >= 60) {
+    chosenMinute -=60;
+    chosenHour +=1;
+    if(chosenHour >12) chosenHour =1;
+  }
+  updateLabels();
+};
+document.getElementById('minute-down').onclick = ()=>{
+  chosenMinute -=5;
+  if(chosenMinute <0) {
+    chosenMinute +=60;
+    chosenHour -=1;
+    if(chosenHour <1) chosenHour =12;
+  }
+  updateLabels();
+};
+
+function startGame() {
+  hideInfo();
+  const nameInput = document.getElementById("playerName").value.trim();
+  const divisionVal = document.getElementById("division").value;
+  const rollNoVal = document.getElementById("rollNo").value.trim();
+
+  if(!nameInput){
+    showInfo("Please enter your name.");
+    return;
+  }
+  if(!divisionVal){
+    showInfo("Please select your division.");
+    return;
+  }
+  if(!rollNoVal){
+    showInfo("Please enter your roll number.");
+    return;
+  }
+
+  playerName = nameInput;
+  division = divisionVal;
+  rollNo = rollNoVal;
+  userKey = `${division}_${rollNo}`;
+
+  document.getElementById("intro").classList.remove("active");
+  document.getElementById("game-area").classList.add("active");
+  generateQuestions();
+  showQuestion();
+  startTimer();
+
+  // Initialize or reset user data in Firebase
+  const initialData = {
+    name: playerName,
+    division: division,
+    rollNo: rollNo,
+    score: 0,
+    questionsCompleted: 0,
+    quiz: "time4",
+    timeStarted: new Date().toISOString(),
+    lastAnswered: new Date().toISOString(),
+    totalQuestions: questions.length
+  };
+  database.ref(`results/${userKey}`).set(initialData);
+}
+
+function startTimer() {
+  const timerEl = document.getElementById("timer");
+  timerInterval = setInterval(()=>{
+    if(totalTime <= 0) {
+      clearInterval(timerInterval);
+      endGame();
+      return;
+    }
+    totalTime--;
+    let minutes = Math.floor(totalTime/60);
+    let seconds = totalTime%60;
+    if(seconds < 10) seconds = "0"+seconds;
+    timerEl.textContent = "Time: " + minutes + ":" + seconds;
+  },1000);
 }
 
 function showQuestion() {
@@ -282,14 +385,14 @@ function showQuestion() {
 
   let feedbackEl = document.getElementById("feedback");
   let explanationEl = document.getElementById("explanation");
-  feedbackEl.classList.add("hidden");
-  explanationEl.classList.add("hidden");
+  feedbackEl.style.display = "none";
+  explanationEl.style.display = "none";
   feedbackEl.textContent = "";
   explanationEl.textContent = "";
 
   let actionBtn = document.getElementById("actionBtn");
   actionBtn.textContent = "Check";
-  state="check";
+  state = "check";
 }
 
 function updateLabels() {
@@ -389,31 +492,40 @@ function checkAnswer() {
 
   let feedbackEl = document.getElementById("feedback");
   let explanationEl = document.getElementById("explanation");
-  feedbackEl.classList.remove("hidden");
+  feedbackEl.style.display = "block";
+  explanationEl.style.display = "block";
   feedbackEl.classList.remove("correct","incorrect");
 
   if(correct) {
     feedbackEl.textContent = "Correct!";
     feedbackEl.classList.add("correct");
-    explanationEl.classList.remove("hidden");
-    explanationEl.textContent = "Good job! The correct time was " + formatTime(q.hour,q.minute) + ".";
+    explanationEl.textContent = "Good job! The correct time was " + formatTime(q.hour, q.minute) + ".";
     score +=10;
   } else {
     feedbackEl.textContent = "Incorrect!";
     feedbackEl.classList.add("incorrect");
-    explanationEl.classList.remove("hidden");
-    explanationEl.textContent = "The correct time was " + formatTime(q.hour,q.minute) + ". Keep trying!";
+    explanationEl.textContent = "The correct time was " + formatTime(q.hour, q.minute) + ". Keep trying!";
   }
 
   document.getElementById("scoreboard").textContent = "Score: " + score;
   let actionBtn = document.getElementById("actionBtn");
   actionBtn.textContent = "Next";
-  state="next";
+  state = "next";
+
+  // Update score and questionsCompleted in Firebase after each answer
+  const timestamp = new Date().toISOString();
+  const questionsCompleted = currentQuestionIndex + 1;
+  const updateData = {
+    score: score,
+    questionsCompleted: questionsCompleted,
+    lastAnswered: timestamp
+  };
+  database.ref(`results/${userKey}`).update(updateData);
 }
 
 function nextQuestion() {
   currentQuestionIndex++;
-  if(currentQuestionIndex>=questions.length) {
+  if(currentQuestionIndex >= questions.length) {
     endGame();
   } else {
     showQuestion();
@@ -425,19 +537,17 @@ function endGame() {
   document.getElementById("game-area").classList.remove("active");
   document.getElementById("result-area").classList.add("active");
   document.getElementById("final-message").textContent = "Great job, " + playerName + "!";
-  document.getElementById("final-score").textContent = "Time 4: Your Score: " + score + " out of " + (questions.length*10);
-}
+  document.getElementById("final-score").textContent = "Time 4: Your Score: " + score + " out of " + (questions.length * 10);
 
-// Utility
-function randomChoice(arr) {
-  return arr[Math.floor(Math.random()*arr.length)];
-}
-
-function shuffleArray(array) {
-  for (let i = array.length-1; i>0; i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [array[i], array[j]]=[array[j], array[i]];
-  }
+  // Update final result in Firebase
+  const timestamp = new Date().toISOString();
+  const finalResultData = {
+    finalScore: score,
+    timeEnded: timestamp,
+    totalTime: 18 * 60 - totalTime,
+    questionsCompleted: questions.length
+  };
+  database.ref(`results/${userKey}`).update(finalResultData);
 }
 </script>
 </body>
